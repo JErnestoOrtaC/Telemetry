@@ -84,9 +84,9 @@ void IMU() {
   int16_t ax, ay, az;
   int16_t gx, gy, gz;
   mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-  datos.ax = az;
+  datos.ax = ay;
   datos.ay = ax;
-  datos.az = ay;
+  datos.az = az;
 
   datos.gx = gx;
   datos.gy = gy;
@@ -144,6 +144,10 @@ void SerialDisplay(){
   Serial.print("Humedad: ");
   Serial.println(datos.humedad);
 
+  Serial.print("Calidad del aire: ");
+  Serial.print(datos.airQuality);
+  Serial.println("%");
+
   Serial.print("Aceleración (x, y, z): ");
   Serial.print(datos.ax);
   Serial.print(", ");
@@ -181,6 +185,7 @@ void PacageTelemetry(){
   mensaje += ",Pres: " + String(datos.presion);
   mensaje += ",Alt: " + String(datos.altura);
   mensaje += ",Hum: " + String(datos.humedad);
+  mensaje += ",Qual: " + String(datos.airQuality);
   mensaje += ",Ax: " + String(datos.ax);
   mensaje += ",Ay: " + String(datos.ay);
   mensaje += ",Az: " + String(datos.az);

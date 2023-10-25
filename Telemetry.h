@@ -11,6 +11,7 @@
 #include <Adafruit_BMP085.h>
 #include <Adafruit_MPU6050.h>
 #include <TinyGPS++.h>
+#include "mq.h"
 
 
 const double home_lat =22.3234415;
@@ -173,7 +174,7 @@ void getGPSData() {
 
 void Get_Sensors(){
   getGPSData();
-  BBMESensor();
+  BMESensor();
   IMU();
 }
 
@@ -212,6 +213,18 @@ void SerialDisplay(){
   Serial.print(", Longitud: ");
   Serial.println(datos.gpsData.longitude,6);
 
+  Serial.println("************* CONCETRATION OF GASES******************");
+  Serial.print("LPG: ");
+  Serial.print(iPPM_LPG);
+  Serial.println(" ppm");
+
+  Serial.print("CO: ");
+  Serial.print(iPPM_CO);
+  Serial.println(" ppm");
+
+  Serial.print("Smoke: ");
+  Serial.print(iPPM_Smoke);
+  Serial.println(" ppm");
 }
 
 void PacageTelemetry(){
@@ -231,4 +244,7 @@ void PacageTelemetry(){
   mensaje += "LAT:" + String(datos.gpsData.latitude) + ",";
   mensaje += "LONG:" + String(datos.gpsData.longitude) + ",";
   mensaje += "Dist:" + String( gps.distanceBetween(gps.location.lat(), gps.location.lng(), home_lat, home_long) );
+  mensaje += "LPG:" + String(iPPM_LPG);
+  mensaje += "CO:" + String(iPPM_CO);
+  mensaje += "Smoke:" + String(iPPM_Smoke);
 }

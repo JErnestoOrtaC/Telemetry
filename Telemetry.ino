@@ -19,7 +19,7 @@ void loop() {
   PacageTelemetry();
   LoraSend(mensaje);
   SerialDisplay();
-  delay(250);
+  delay(150);
 
 
 }

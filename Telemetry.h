@@ -8,11 +8,15 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
-#include <MPU6050.h>
+#include <Adafruit_BMP085.h>
+#include <Adafruit_MPU6050.h>
 #include <TinyGPS++.h>
 
+
+const double home_lat =22.3234415;
+const double home_long = -97.8788431;
+const double tolerancia_latitud = 0.0002; // Rango de tolerancia de 1 metro en latitud
 #define EARTH_RADIUS 6371.0
-#define MQpin 34
 
 struct GPSData {
   double latitude;
@@ -24,24 +28,25 @@ struct Telemetria {
   float Pz=0;
   float temperatura;
   float presion;
-  float humedad;
   float altura;
-  float airQuality;
+  float humedad;
+  float tin;
   float ax;
   float ay;
   float az;
   float gx;
   float gy;
   float gz;
-  float vx, vy, vz, vt;
   GPSData gpsData;  // Agrega el miembro de tipo GPSData
 };
 
 String mensaje;
 
+Adafruit_MPU6050 mpu;
 Adafruit_BME280 bme;
-MPU6050 mpu;
+Adafruit_BMP085 bmp;
 TinyGPSPlus gps;
+
 
 Telemetria datos;
 GPSData data;
@@ -49,11 +54,8 @@ GPSData data;
 
 
 float Get_Pz(){
-  long double x=0;
-  for(int i=0; i<11;i++){
-    x += ( bme.readPressure() / 100.F );
-  }
-    return (bme.readPressure()/100.0F);
+  delay(150);
+    return ( bme.readPressure());
 }
 
 void Sensorcheck(){
@@ -66,31 +68,97 @@ void Sensorcheck(){
   }
 
   // Inicializar el sensor MPU6050
-  mpu.initialize();
-  if (!mpu.testConnection()) {
-    Serial.println("No se pudo encontrar el sensor MPU6050. Verifica las conexiones.");
-    while (1);
+  // Try to initialize!
+  if (!mpu.begin()) {
+    Serial.println("Failed to find MPU6050 chip");
+    while (1) {
+      delay(10);
+    }
   }
+  Serial.println("MPU6050 Found!");
+
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  Serial.print("Accelerometer range set to: ");
+  switch (mpu.getAccelerometerRange()) {
+    case MPU6050_RANGE_2_G:
+      Serial.println("+-2G");
+      break;
+    case MPU6050_RANGE_4_G:
+      Serial.println("+-4G");
+      break;
+    case MPU6050_RANGE_8_G:
+      Serial.println("+-8G");
+      break;
+    case MPU6050_RANGE_16_G:
+      Serial.println("+-16G");
+      break;
+    }
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+  Serial.print("Gyro range set to: ");
+  switch (mpu.getGyroRange()) {
+    case MPU6050_RANGE_250_DEG:
+      Serial.println("+- 250 deg/s");
+      break;
+    case MPU6050_RANGE_500_DEG:
+      Serial.println("+- 500 deg/s");
+      break;
+    case MPU6050_RANGE_1000_DEG:
+      Serial.println("+- 1000 deg/s");
+      break;
+    case MPU6050_RANGE_2000_DEG:
+      Serial.println("+- 2000 deg/s");
+      break;
+  }
+
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  Serial.print("Filter bandwidth set to: ");
+  switch (mpu.getFilterBandwidth()) {
+    case MPU6050_BAND_260_HZ:
+      Serial.println("260 Hz");
+      break;
+    case MPU6050_BAND_184_HZ:
+      Serial.println("184 Hz");
+      break;
+    case MPU6050_BAND_94_HZ:
+      Serial.println("94 Hz");
+      break;
+    case MPU6050_BAND_44_HZ:
+      Serial.println("44 Hz");
+      break;
+    case MPU6050_BAND_21_HZ:
+      Serial.println("21 Hz");
+      break;
+    case MPU6050_BAND_10_HZ:
+      Serial.println("10 Hz");
+      break;
+    case MPU6050_BAND_5_HZ:
+      Serial.println("5 Hz");
+      break;
+    }
+
+  Serial.begin(9600);
 }
 
-void BMPSensor() {
+void BMESensor() {
   datos.temperatura = bme.readTemperature();
-  datos.presion = bme.readPressure() / 100.0F;
-  datos.altura = bme.readAltitude(datos.Pz);
-  datos.humedad = bme.readHumidity();
+  datos.presion = bme.readPressure() ;
+  datos.altura = bmp.readAltitude(datos.Pz);
 }
 
 void IMU() {
-  int16_t ax, ay, az;
-  int16_t gx, gy, gz;
-  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-  datos.ax = ay;
-  datos.ay = ax;
-  datos.az = az;
+  
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
 
-  datos.gx = gx;
-  datos.gy = gy;
-  datos.gz = gz;
+  datos.ax = a.acceleration.z;
+  datos.ay = a.acceleration.x;
+  datos.az = a.acceleration.y;
+
+  datos.gx = g.gyro.z;
+  datos.gy = g.gyro.x;
+  datos.gz = g.gyro.y;
+
+  datos.tin = temp.temperature;
 }
 
 void getGPSData() {
@@ -103,34 +171,17 @@ void getGPSData() {
     datos.gpsData.longitude = gps.location.lng();
 }
 
-void Get_vt() {
-  // Integración de la aceleración lineal para obtener la velocidad
-  datos.vx += (datos.ax - datos.gx) *3;
-  datos.vy += (datos.ay - datos.gy)*3;
-  datos.vz += (datos.az - datos.gz)*3;
-
-  datos.vt = sqrt(datos.vx * datos.vx + datos.vy * datos.vy + datos.vz * datos.vz);
-
-}
-
-void Mqsensor(){
-  int sensorVal = analogRead(MQpin);
-  datos.airQuality = map(sensorVal, 0, 4095, 0, 100);
-}
-
 void Get_Sensors(){
   getGPSData();
-  BMPSensor();
+  BBMESensor();
   IMU();
-  Get_vt();
 }
 
 void SerialDisplay(){
-
-  Serial.println("----------------------Telemetry---------------------");
-
-  Serial.print("Temperatura: ");
+  Serial.print("Temperatura Ext: ");
   Serial.println(datos.temperatura);
+
+  Serial.println("Temperatura Int: " + String(datos.tin) );
 
   Serial.print("PZ:");
   Serial.println(datos.Pz);
@@ -140,13 +191,6 @@ void SerialDisplay(){
 
   Serial.print("Altitud: ");
   Serial.println(datos.altura);
-
-  Serial.print("Humedad: ");
-  Serial.println(datos.humedad);
-
-  Serial.print("Calidad del aire: ");
-  Serial.print(datos.airQuality);
-  Serial.println("%");
 
   Serial.print("Aceleración (x, y, z): ");
   Serial.print(datos.ax);
@@ -162,44 +206,29 @@ void SerialDisplay(){
   Serial.print(", ");
   Serial.println(datos.gz);
 
-  Serial.print("Velocidad (x, y, z, total): ");
-  Serial.print(datos.vx);
-  Serial.print(", ");
-  Serial.print(datos.vy);
-  Serial.print(", ");
-  Serial.print(datos.vz);
-  Serial.print(", ");
-  Serial.println(datos.vt);
-
   Serial.print("Datos GPS: ");
   Serial.print("Latitud: ");
   Serial.print(datos.gpsData.latitude,6 );
   Serial.print(", Longitud: ");
   Serial.println(datos.gpsData.longitude,6);
+
 }
 
 void PacageTelemetry(){
   mensaje = "";
   // Realiza lo mismo para cada variable, por ejemplo:
-  mensaje += "Temp: " + String(datos.temperatura);
-  mensaje += ",Pres: " + String(datos.presion);
-  mensaje += ",Alt: " + String(datos.altura);
-  mensaje += ",Hum: " + String(datos.humedad);
-  mensaje += ",Qual: " + String(datos.airQuality);
-  mensaje += ",Ax: " + String(datos.ax);
-  mensaje += ",Ay: " + String(datos.ay);
-  mensaje += ",Az: " + String(datos.az);
-  mensaje += ",Gx: " + String(datos.gx);
-  mensaje += ",Gy: " + String(datos.gy);
-  mensaje += ",Gz: " + String(datos.gz);
-  mensaje += ",Vx: " + String(datos.vx);
-  mensaje += ",Vy: " + String(datos.vy);
-  mensaje += ",Vz: " + String(datos.vz);
-  mensaje += ",Vt: " + String(datos.vt);
+  mensaje += "TEMP_EX:" + String(datos.temperatura) + ",";
+  mensaje += "TEMP_INT:" + String(datos.tin) + ",";
+  mensaje += "PRE:" + String(datos.presion);
+  mensaje += "ALT:" + String(datos.altura);
+  mensaje += "HUM:" + String(datos.tin) + ",";
+  mensaje += "Ax:" + String(datos.ax) + ",";
+  mensaje += "Ay:" + String(datos.ay) + ",";
+  mensaje += "Az:" + String(datos.az) + ",";
+  mensaje += "Gx:" + String(datos.gx) + ",";
+  mensaje += "Gy:" + String(datos.gy) + ",";
+  mensaje += "Gz:" + String(datos.gz) + ",";
+  mensaje += "LAT:" + String(datos.gpsData.latitude) + ",";
+  mensaje += "LONG:" + String(datos.gpsData.longitude) + ",";
+  mensaje += "Dist:" + String( gps.distanceBetween(gps.location.lat(), gps.location.lng(), home_lat, home_long) );
 }
-
-
-
-
-
-

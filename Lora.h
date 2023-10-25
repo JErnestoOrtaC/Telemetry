@@ -5,7 +5,7 @@
 String lora_band = "915000000";
 String lora_networkid = "2";
 String lora_address = "1";
-String lora_bandwidth = "10, 4, 1, 7";
+String lora_bandwidth = "10, 7, 1, 7";
 String lora_RX_address = "1";
 
 void LoraConfig(){

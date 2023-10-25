@@ -7,7 +7,7 @@
 
 void Begins(){
 
-  pinMode(MQpin, INPUT);
+  pinMode(4, INPUT);
 
   Serial.begin(9600);
   Serial1.begin(9600, SERIAL_8N1, 32, 4);

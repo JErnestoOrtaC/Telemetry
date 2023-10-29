@@ -1,5 +1,5 @@
 const int calibrationLed=13;
-const int MQ_PIN=A0;
+const int MQ_PIN=34;
 int RL_VALUE=1;
 float RO_CLEAN_AIR_FACTOR=9.86;
 

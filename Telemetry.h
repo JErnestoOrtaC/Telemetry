@@ -11,8 +11,8 @@
 #include <Adafruit_BMP085.h>
 #include <Adafruit_MPU6050.h>
 #include <TinyGPS++.h>
-#include "mq.h"
 
+char error = 's';
 
 const double home_lat =22.3234415;
 const double home_long = -97.8788431;
@@ -38,6 +38,7 @@ struct Telemetria {
   float gx;
   float gy;
   float gz;
+  float LPG, CO, Smoke;
   GPSData gpsData;  // Agrega el miembro de tipo GPSData
 };
 
@@ -55,8 +56,7 @@ GPSData data;
 
 
 float Get_Pz(){
-  delay(150);
-    return ( bme.readPressure());
+  return bme.readPressure()/100;
 }
 
 void Sensorcheck(){
@@ -142,8 +142,7 @@ void Sensorcheck(){
 
 void BMESensor() {
   datos.temperatura = bme.readTemperature();
-  datos.presion = bme.readPressure() ;
-  datos.altura = bmp.readAltitude(datos.Pz);
+  datos.presion = bme.readPressure()/100 ;
 }
 
 void IMU() {
@@ -175,10 +174,12 @@ void getGPSData() {
 void Get_Sensors(){
   getGPSData();
   BMESensor();
+  datos.altura = bme.readAltitude(datos.Pz);
   IMU();
 }
 
 void SerialDisplay(){
+  Serial.println("############################################################################");
   Serial.print("Temperatura Ext: ");
   Serial.println(datos.temperatura);
 
@@ -213,17 +214,16 @@ void SerialDisplay(){
   Serial.print(", Longitud: ");
   Serial.println(datos.gpsData.longitude,6);
 
-  Serial.println("************* CONCETRATION OF GASES******************");
   Serial.print("LPG: ");
-  Serial.print(iPPM_LPG);
+  Serial.print(datos.LPG);
   Serial.println(" ppm");
 
   Serial.print("CO: ");
-  Serial.print(iPPM_CO);
+  Serial.print(datos.CO);
   Serial.println(" ppm");
 
   Serial.print("Smoke: ");
-  Serial.print(iPPM_Smoke);
+  Serial.print(datos.Smoke);
   Serial.println(" ppm");
 }
 
@@ -244,7 +244,7 @@ void PacageTelemetry(){
   mensaje += "LAT:" + String(datos.gpsData.latitude) + ",";
   mensaje += "LONG:" + String(datos.gpsData.longitude) + ",";
   mensaje += "Dist:" + String( gps.distanceBetween(gps.location.lat(), gps.location.lng(), home_lat, home_long) );
-  mensaje += "LPG:" + String(iPPM_LPG);
-  mensaje += "CO:" + String(iPPM_CO);
-  mensaje += "Smoke:" + String(iPPM_Smoke);
+  mensaje += "LPG:" + String(datos.LPG);
+  mensaje += "CO:" + String(datos.CO);
+  mensaje += "Smoke:" + String(datos.Smoke);
 }

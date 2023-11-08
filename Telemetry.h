@@ -13,6 +13,7 @@
 #include <TinyGPS++.h>
 
 char error = 's';
+const float valMax = 3350.45;
 
 const double home_lat =22.3234415;
 const double home_long = -97.8788431;
@@ -38,6 +39,7 @@ struct Telemetria {
   float gx;
   float gy;
   float gz;
+  float bat;
   float LPG, CO, Smoke;
   GPSData gpsData;  // Agrega el miembro de tipo GPSData
 };
@@ -150,13 +152,13 @@ void IMU() {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
-  datos.ax = a.acceleration.z;
-  datos.ay = a.acceleration.x;
-  datos.az = a.acceleration.y;
+  datos.ax = a.acceleration.x;
+  datos.ay = a.acceleration.y;
+  datos.az = a.acceleration.z;
 
-  datos.gx = g.gyro.z;
-  datos.gy = g.gyro.x;
-  datos.gz = g.gyro.y;
+  datos.gx = g.gyro.x;
+  datos.gy = g.gyro.y;
+  datos.gz = g.gyro.z;
 
   datos.tin = temp.temperature;
 }
@@ -171,10 +173,20 @@ void getGPSData() {
     datos.gpsData.longitude = gps.location.lng();
 }
 
+void Baterylevel(){
+  float readval = analogRead(15);
+  float porcentaje = readval * 100;
+  porcentaje = porcentaje / valMax;
+  if(porcentaje <= 0){ porcentaje = 0;}
+  if(porcentaje >= 100){ porcentaje = 100;}
+  datos.bat = porcentaje;
+}
+
 void Get_Sensors(){
   getGPSData();
   BMESensor();
   datos.altura = bme.readAltitude(datos.Pz);
+  Baterylevel();
   IMU();
 }
 
@@ -225,6 +237,10 @@ void SerialDisplay(){
   Serial.print("Smoke: ");
   Serial.print(datos.Smoke);
   Serial.println(" ppm");
+
+  Serial.print("Bat: ");
+  Serial.print(datos.bat);
+  Serial.println("%");
 }
 
 void PacageTelemetry(){
@@ -232,8 +248,8 @@ void PacageTelemetry(){
   // Realiza lo mismo para cada variable, por ejemplo:
   mensaje += "TEMP_EX:" + String(datos.temperatura) + ",";
   mensaje += "TEMP_INT:" + String(datos.tin) + ",";
-  mensaje += "PRE:" + String(datos.presion);
-  mensaje += "ALT:" + String(datos.altura);
+  mensaje += "PRE:" + String(datos.presion)+ ",";
+  mensaje += "ALT:" + String(datos.altura)+ ",";
   mensaje += "HUM:" + String(datos.tin) + ",";
   mensaje += "Ax:" + String(datos.ax) + ",";
   mensaje += "Ay:" + String(datos.ay) + ",";
@@ -241,10 +257,11 @@ void PacageTelemetry(){
   mensaje += "Gx:" + String(datos.gx) + ",";
   mensaje += "Gy:" + String(datos.gy) + ",";
   mensaje += "Gz:" + String(datos.gz) + ",";
-  mensaje += "LAT:" + String(datos.gpsData.latitude) + ",";
-  mensaje += "LONG:" + String(datos.gpsData.longitude) + ",";
-  mensaje += "Dist:" + String( gps.distanceBetween(gps.location.lat(), gps.location.lng(), home_lat, home_long) );
-  mensaje += "LPG:" + String(datos.LPG);
-  mensaje += "CO:" + String(datos.CO);
-  mensaje += "Smoke:" + String(datos.Smoke);
+  mensaje += "LAT:" + String(datos.gpsData.latitude, 6) + ",";
+  mensaje += "LONG:" + String(datos.gpsData.longitude, 6) + ",";
+  mensaje += "Dist:" + String( gps.distanceBetween(gps.location.lat(), gps.location.lng(), home_lat, home_long) )+ ",";
+  mensaje += "LPG:" + String(datos.LPG)+ ",";
+  mensaje += "CO:" + String(datos.CO)+ ",";
+  mensaje += "Smoke:" + String(datos.Smoke)+ ",";
+  mensaje += "Bat:" + String(datos.bat)+ ",";
 }
